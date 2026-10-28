@@ -1,0 +1,9 @@
+streamlit>=1.40
+openai>=1.60
+pydantic>=2.9
+pandas>=2.2
+gspread>=6.1
+google-auth>=2.35
+folium>=0.17
+streamlit-folium>=0.23
+python-dotenv>=1.0

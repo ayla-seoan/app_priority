@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ko" translate="no" class="notranslate">
+<head>
+<meta charset="utf-8" />
+<meta name="google" content="notranslate" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<style>
+  :root {
+    /* common/static/theme.css 와 같은 팔레트 */
+    --bg: #ffffff;
+    --cell: #F7F2E9;
+    --cell-over: #FFFFFF;
+    --text: #2E3359;
+    --muted: #7C809A;
+    --teal: #4FA893;
+    --line: #EAE1D2;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: auto; }
+  body {
+    margin: 0; padding: 12px;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo",
+                 "Malgun Gothic", "Noto Sans KR", sans-serif;
+    color: var(--text); background: var(--bg);
+  }
+  .wrap { display: block; }
+  .axis-top {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    margin: 0 0 8px 2px;
+  }
+  .y-axis {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+  .y-axis .label {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    letter-spacing: .03em; white-space: nowrap;
+  }
+  .board { display: grid; gap: 8px; }
+  .row-head {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-align: center; word-break: keep-all; line-height: 1.2;
+    padding-top: 22px;
+  }
+  .cell {
+    background: var(--cell-bg, var(--cell)); border: 1.5px dashed transparent; border-radius: 16px;
+    min-height: 130px; padding: 8px; transition: background .12s, border-color .12s;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cell.over { background: var(--cell-over); border-color: var(--teal); }
+  .cell-note {
+    font-size: 11px; font-weight: 700; color: var(--teal);
+  }
+  .cell-note .rank { opacity: .55; font-weight: 600; }
+  .sticker {
+    border-radius: 12px; padding: 8px 10px; cursor: grab;
+    box-shadow: 0 1px 0 rgba(46,51,89,.05), 0 6px 14px -10px rgba(46,51,89,.45);
+    font-size: 12px; line-height: 1.35; user-select: none;
+    border: 1px solid rgba(46,51,89,.06);
+  }
+  .sticker:active { cursor: grabbing; }
+  .sticker.dragging { opacity: .4; }
+  .sticker .title { font-weight: 600; display: block; margin-bottom: 3px; }
+  .sticker .meta { font-size: 10px; color: rgba(46,51,89,.62); }
+  .col-heads { display: grid; gap: 8px; margin-top: 6px; }
+  .col-head { text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .x-axis { text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px 2px; }
+  .hint { font-size: 11px; color: var(--muted); margin: 0; }
+  #save-png {
+    flex: none; font: inherit; font-size: 12px; font-weight: 600;
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line);
+    background: #FBF8F2; color: var(--text);
+  }
+  #save-png:hover { border-color: var(--teal); color: var(--teal); background: #fff; }
+  #save-png:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .empty { font-size: 11px; color: #a0a0aa; text-align: center; padding: 18px 0; }
+  /* 피라미드: 단마다 폭을 넓혀 위가 좁은 모양으로 쌓는다 */
+  .pyramid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .cell.tier {
+    min-width: 240px; min-height: 92px;
+    flex-direction: row; flex-wrap: wrap; align-content: flex-start;
+  }
+  .cell.tier .cell-note, .cell.tier .empty { width: 100%; text-align: center; }
+  .cell.tier .sticker { flex: 0 1 190px; }
+  /* 끄는 동안 마우스를 따라다니는 그림: 동물이 스티커를 들고 간다 */
+  .drag-ghost {
+    position: absolute; top: -1000px; left: -1000px;
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600; pointer-events: none;
+  }
+  .drag-ghost .animal { font-size: 28px; line-height: 1; }
+  .drag-ghost .label {
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    border-radius: 6px; padding: 5px 7px; box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  }
+</style>
+<style id="animal-cursor"></style>
+</head>
+<body>
+<div class="toolbar">
+  <p class="hint">스티커를 끌어서 다른 칸으로 옮기거나 칸 안에서 위아래로 바꾸면 순위가 다시 계산됩니다.</p>
+  <button id="save-png" type="button">🖼️ 보드 이미지 내려받기</button>
+</div>
+<div id="root"></div>
+
+<!-- 보드 캡처용. 불러오지 못하면 버튼에 안내만 띄운다 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+/* ---------- Streamlit 연결 (빌드 없이 쓰는 기본 핸드셰이크) ---------- */
+function send(type, data) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+}
+const Streamlit = {
+  ready: () => send("streamlit:componentReady", { apiVersion: 1 }),
+  height: (h) => send("streamlit:setFrameHeight", { height: h }),
+  value: (v) => send("streamlit:setComponentValue", { value: v, dataType: "json" }),
+};
+
+/* ---------- 상태 ---------- */
+let TEMPLATE = null;      // {rows, cols, order, cell_notes, x_axis, y_axis}
+let STICKERS = {};        // id -> sticker
+let LAYOUT = {};          // cellKey -> [id]
+let PALETTE = {};         // kpi -> 색
+let CURSOR = null;        // 커서로 쓸 동물 이모지 (없으면 기본 커서)
+let FILE_NAME = "board";  // 이미지 파일 이름 (확장자 제외). 같은 이름의 CSV 와 짝을 이룬다
+
+// 코럴·머스터드·민트·하늘·라벤더 계열의 옅은 색. 글자색(네이비)과 대비가 충분하다
+const COLORS = ["#F6CDBF", "#F7E2A6", "#CDEBDD", "#CFE0F3", "#E3DAF3", "#F3D9C4", "#DCE8C6"];
+
+function colorFor(kpi) {
+  if (kpi === "(제외)") return "#E6E2DA";
+  if (!(kpi in PALETTE)) PALETTE[kpi] = COLORS[Object.keys(PALETTE).length % COLORS.length];
+  return PALETTE[kpi];
+}
+
+/* ---------- 렌더 ---------- */
+function render() {
+  const root = document.getElementById("root");
+  const rows = TEMPLATE.rows, cols = TEMPLATE.cols;
+  const colTemplate = `repeat(${cols.length}, minmax(0, 1fr))`;
+
+  root.innerHTML = "";
+
+  const wrap = document.createElement("div");
+  wrap.className = "wrap";
+
+  const yAxis = document.createElement("div");
+  yAxis.className = "axis-top";
+  yAxis.textContent = "↑ 위로 갈수록 " + TEMPLATE.y_axis + " 큼";
+  wrap.appendChild(yAxis);
+
+  if (TEMPLATE.shape === "pyramid") {
+    wrap.appendChild(buildPyramid());
+    root.appendChild(wrap);
+    syncHeight();
+    setTimeout(syncHeight, 150);
+    return;
+  }
+
+  const right = document.createElement("div");
+
+  const board = document.createElement("div");
+  board.className = "board";
+  board.style.gridTemplateColumns = `56px ${colTemplate}`;
+
+  rows.forEach(([rowKey, rowLabel]) => {
+    const head = document.createElement("div");
+    head.className = "row-head";
+    head.textContent = rowLabel;
+    board.appendChild(head);
+
+    cols.forEach(([colKey]) => {
+      const key = `${rowKey}-${colKey}`;
+      board.appendChild(buildCell(key));
+    });
+  });
+
+  right.appendChild(board);
+
+  const colHeads = document.createElement("div");
+  colHeads.className = "col-heads";
+  colHeads.style.gridTemplateColumns = `56px ${colTemplate}`;
+  colHeads.appendChild(document.createElement("div"));
+  cols.forEach(([, colLabel]) => {
+    const h = document.createElement("div");
+    h.className = "col-head";
+    h.textContent = colLabel;
+    colHeads.appendChild(h);
+  });
+  right.appendChild(colHeads);
+
+  const xAxis = document.createElement("div");
+  xAxis.className = "x-axis";
+  xAxis.textContent = "오른쪽으로 갈수록 " + TEMPLATE.x_axis + " 큼 →";
+  right.appendChild(xAxis);
+
+  wrap.appendChild(right);
+  root.appendChild(wrap);
+
+  syncHeight();
+  setTimeout(syncHeight, 150);
+}
+
+let lastHeight = 0;
+function syncHeight() {
+  // document.scrollHeight 를 쓰면 안 된다. iframe 이 커지면 body 도 따라 커져서
+  // 높이가 무한히 불어난다. 내용물 블록의 실제 높이만 잰다.
+  const toolbar = document.querySelector(".toolbar");
+  const root = document.getElementById("root");
+  if (!root) return;
+  const h = (toolbar ? toolbar.offsetHeight + 10 : 0) + root.offsetHeight + 28;
+  if (Math.abs(h - lastHeight) < 8) return;
+  lastHeight = h;
+  Streamlit.height(h);
+}
+
+// 행 하나가 피라미드 한 단. 맨 위 40% 폭에서 맨 아래 100% 폭까지 넓어진다.
+function buildPyramid() {
+  const pyramid = document.createElement("div");
+  pyramid.className = "pyramid";
+  const rows = TEMPLATE.rows, colKey = TEMPLATE.cols[0][0];
+  rows.forEach(([rowKey], i) => {
+    const cell = buildCell(`${rowKey}-${colKey}`);
+    cell.classList.add("tier");
+    cell.style.width = `${40 + (60 * i) / Math.max(rows.length - 1, 1)}%`;
+    pyramid.appendChild(cell);
+  });
+  return pyramid;
+}
+
+// 칸 색: 한 가지 색(민트)의 명암만. 1순위가 가장 진하고 마지막 칸으로 갈수록 옅어진다
+const CELL_STOPS = ["#CDE7DB", "#F7F5F0"];
+
+function mixHex(a, b, t) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+
+function cellColor(rank) {
+  const max = Math.max(...Object.values(TEMPLATE.order));
+  const t = max > 1 ? (rank - 1) / (max - 1) : 0;   // 0(가장 중요) ~ 1(가장 덜 중요)
+  return mixHex(CELL_STOPS[0], CELL_STOPS[1], t);
+}
+
+function buildCell(key) {
+  const cell = document.createElement("div");
+  cell.className = "cell";
+  cell.dataset.cell = key;
+  cell.style.setProperty("--cell-bg", cellColor(TEMPLATE.order[key]));
+
+  const note = document.createElement("div");
+  note.className = "cell-note";
+  const rank = TEMPLATE.order[key];
+  note.innerHTML = `${TEMPLATE.cell_notes[key] || ""} <span class="rank">${rank}순위 칸</span>`;
+  cell.appendChild(note);
+
+  const ids = LAYOUT[key] || [];
+  if (ids.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "비어 있음";
+    cell.appendChild(empty);
+  }
+  ids.forEach((id) => {
+    const s = STICKERS[id];
+    if (s) cell.appendChild(buildSticker(s));
+  });
+
+  cell.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    cell.classList.add("over");
+  });
+  cell.addEventListener("dragleave", () => cell.classList.remove("over"));
+  cell.addEventListener("drop", (e) => {
+    e.preventDefault();
+    cell.classList.remove("over");
+    const id = e.dataTransfer.getData("text/plain");
+    if (!id) return;
+    const target = e.target.closest(".sticker");
+    moveSticker(id, key, target ? target.dataset.id : null);
+  });
+
+  return cell;
+}
+
+function buildSticker(s) {
+  const el = document.createElement("div");
+  el.className = "sticker";
+  el.draggable = true;
+  el.dataset.id = s.id;
+  el.style.background = colorFor(s.kpi);
+  el.innerHTML =
+    `<span class="title">${escapeHtml(s.title)}</span>` +
+    `<span class="meta">${escapeHtml(s.kpi)} · ${s.effort_hours}H · 처음 ${s.ai_rank}위</span>`;
+  el.title = s.reason || "";
+
+  el.addEventListener("dragstart", (e) => {
+    e.dataTransfer.setData("text/plain", s.id);
+    e.dataTransfer.effectAllowed = "move";
+    if (CURSOR) {
+      const ghost = dragGhost(s);
+      e.dataTransfer.setDragImage(ghost, 14, 14);
+    }
+    el.classList.add("dragging");
+  });
+  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  return el;
+}
+
+/* ---------- 동물 커서 ---------- */
+function applyCursor(animal) {
+  CURSOR = animal || null;
+  const style = document.getElementById("animal-cursor");
+  if (!CURSOR) { style.textContent = ""; return; }
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'>" +
+              `<text x='0' y='26' font-size='26'>${CURSOR}</text></svg>`;
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 4 4`;
+  style.textContent = `body, body * { cursor: ${url}, auto !important; }`;
+}
+
+// setDragImage 는 화면에 붙어 있는 요소만 쓸 수 있어 화면 밖에 하나 두고 재사용한다.
+function dragGhost(s) {
+  let ghost = document.querySelector(".drag-ghost");
+  if (!ghost) {
+    ghost = document.createElement("div");
+    ghost.className = "drag-ghost";
+    document.body.appendChild(ghost);
+  }
+  ghost.innerHTML =
+    `<span class="animal">${CURSOR}</span>` +
+    `<span class="label" style="background:${colorFor(s.kpi)}">${escapeHtml(s.title)}</span>`;
+  return ghost;
+}
+
+/* ---------- 이미지 저장 ---------- */
+async function savePng() {
+  const btn = document.getElementById("save-png");
+  if (typeof html2canvas !== "function") {
+    btn.textContent = "이미지 도구를 불러오지 못했습니다 (인터넷 연결 확인)";
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const canvas = await html2canvas(document.getElementById("root"), { backgroundColor: "#ffffff", scale: 2 });
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `${FILE_NAME}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (err) {
+    btn.textContent = "이미지를 만들지 못했습니다";
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.getElementById("save-png").addEventListener("click", savePng);
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ---------- 이동 ---------- */
+function moveSticker(id, toCell, beforeId) {
+  for (const key of Object.keys(LAYOUT)) {
+    LAYOUT[key] = LAYOUT[key].filter((x) => x !== id);
+  }
+  if (!LAYOUT[toCell]) LAYOUT[toCell] = [];
+
+  if (beforeId && beforeId !== id) {
+    const at = LAYOUT[toCell].indexOf(beforeId);
+    LAYOUT[toCell].splice(at < 0 ? LAYOUT[toCell].length : at, 0, id);
+  } else {
+    LAYOUT[toCell].push(id);
+  }
+  render();
+  Streamlit.value({ layout: LAYOUT, at: Date.now() });
+}
+
+/* ---------- Streamlit 에서 데이터 받기 ---------- */
+window.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "streamlit:render") return;
+  const args = event.data.args || {};
+  if (!args.template) return;
+
+  TEMPLATE = args.template;
+  applyCursor(args.cursor);
+  FILE_NAME = args.file_name || "board";
+  STICKERS = {};
+  (args.stickers || []).forEach((s) => { STICKERS[s.id] = s; });
+
+  // 사용자가 이미 옮긴 배치가 있으면 그것을 쓴다.
+  LAYOUT = JSON.parse(JSON.stringify(args.layout || {}));
+  for (const key of Object.keys(TEMPLATE.order)) {
+    if (!LAYOUT[key]) LAYOUT[key] = [];
+  }
+  render();
+});
+
+Streamlit.ready();
+Streamlit.height(400);
+</script>
+</body>
+</html>

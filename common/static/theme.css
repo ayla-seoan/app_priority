@@ -1,0 +1,167 @@
+/* Priority Buddy 테마. common/ui.py 의 inject_theme() 가 페이지에 넣는다.
+   카드는 st.container(key="pb-card-...") 로 만들고, Streamlit 이 붙이는 st-key-* 클래스로 꾸민다. */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
+:root {
+  --pb-canvas: #F3ECDF;
+  --pb-panel: #FFFFFF;
+  --pb-soft: #FBF8F2;
+  --pb-line: #EAE1D2;
+  --pb-ink: #2E3359;
+  --pb-muted: #686C88;   /* 흰 카드 위에서 4.5:1 이상 */
+  --pb-teal: #4FA893;
+  --pb-mint: #CDEBDD;
+  --pb-coral: #E8836B;
+  --pb-mustard: #EFC45A;
+  --pb-shadow: 0 1px 0 rgba(46, 51, 89, .04), 0 14px 32px -22px rgba(46, 51, 89, .35);
+  --pb-font: "Pretendard Variable", Pretendard, -apple-system, "Malgun Gothic", sans-serif;
+  --pb-display: "Jua", "Pretendard Variable", "Malgun Gothic", sans-serif;
+}
+
+/* ---------- 바탕 ---------- */
+.stApp { background: var(--pb-canvas); }
+[data-testid="stHeader"] { background: transparent; }
+/* 번역 금지용 높이 0 조각(common/ui.py)이 빈 줄을 만들지 않게 */
+[data-testid="stElementContainer"]:has(> [data-testid="stIFrame"]) { display: none; }
+[data-testid="stMainBlockContainer"] { max-width: 1240px; padding-top: 1.75rem; padding-bottom: 4rem; }
+.stApp :is(p, li, label, h1, h2, h3, h4, h5, h6, button, input, textarea, small) { font-family: var(--pb-font); }
+.stApp :is(h1, h2, h3, h4, h5, h6) { color: var(--pb-ink); letter-spacing: -0.01em; }
+.stApp h3 { font-size: 1.15rem; font-weight: 700; padding: 0 0 .25rem; }
+.stApp h4 { font-size: 1rem; font-weight: 700; }
+.stApp h5 { font-size: .9rem; font-weight: 700; color: var(--pb-muted); }  /* 단락 안 작은 제목 (예: 표 이름) */
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--pb-muted) !important; opacity: 1; }
+
+/* ---------- 상단 바 ---------- */
+.st-key-pb-topbar {
+  background: rgba(255, 255, 255, .88);
+  border-radius: 24px; padding: 14px 22px;
+  box-shadow: var(--pb-shadow);
+  margin-bottom: .5rem;
+}
+.st-key-pb-topbar [data-testid="stHorizontalBlock"] { align-items: center; }
+/* 마크다운 블록의 기본 음수 아래 여백 때문에 마스코트가 잘리지 않도록 */
+.st-key-pb-topbar [data-testid="stMarkdownContainer"] { margin-bottom: 0; overflow: visible; }
+.st-key-pb-topbar, .st-key-pb-topbar * { overflow: visible; }
+.pb-brand { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 2px 0; }
+.pb-brand svg { flex: none; }
+.pb-brand-title { font-family: var(--pb-display); font-size: 1.7rem; line-height: 1.15; color: var(--pb-ink); }
+.pb-brand-sub { font-size: .92rem; color: var(--pb-muted); margin-top: 2px; }
+.pb-brand-note { font-size: .78rem; color: var(--pb-teal); font-weight: 600; margin-top: 4px; }
+
+/* ---------- 카드 ---------- */
+div[class*="st-key-pb-card"] {
+  background: var(--pb-panel);
+  border-radius: 22px; padding: 22px 24px 20px;
+  box-shadow: var(--pb-shadow);
+}
+
+/* 강조 카드: 화면마다 하나만 둔다 */
+.pb-dark {
+  background: var(--pb-ink); color: #fff;
+  border-radius: 22px; padding: 22px 24px;
+  box-shadow: 0 18px 36px -22px rgba(46, 51, 89, .7);
+}
+.pb-dark-label { font-size: .85rem; font-weight: 600; color: var(--pb-mint); }
+.pb-dark-big { font-family: var(--pb-display); font-size: 3.4rem; line-height: 1.05; color: #fff; margin: 10px 0 2px; }
+.pb-dark-big small { font-family: var(--pb-font); font-size: 1rem; font-weight: 600; color: rgba(255, 255, 255, .75); margin-left: 6px; }
+/* 준비 상태처럼 큰 숫자 두 개를 나란히 둘 때. 좁으면 숫자·단위가 떨어지지 않게 통째로 줄바꿈 */
+.pb-dark-stats { display: flex; flex-wrap: wrap; column-gap: 18px; }
+.pb-dark-stats span { white-space: nowrap; }
+.pb-dark-title { font-family: var(--pb-display); font-size: 1.8rem; line-height: 1.25; color: #fff; margin: 10px 0 6px; word-break: keep-all; }
+.pb-dark-foot { font-size: .85rem; color: rgba(255, 255, 255, .72); line-height: 1.5; }
+.pb-dark-foot b { color: var(--pb-mustard); font-weight: 700; }
+/* 준비가 덜 된 채 '우선순위 만들기' 를 눌렀을 때 빠진 것을 알리는 글자. 네이비 위에서 읽히도록 밝은 빨강 */
+.pb-dark-foot .pb-alert, .pb-dark-foot .pb-alert b { color: #FF8F87; }
+
+/* 준비가 덜 됐을 때 '우선순위 만들기' 는 눌리지만 비활성처럼 흐리게 */
+.st-key-pb-generate-blocked button { opacity: .45; }
+
+/* 강조 카드 안 TOP 5 목록: 한 줄에 순위 · 제목 · 점수. 1위만 머스터드로 */
+.pb-top { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pb-top li { display: flex; align-items: center; gap: 10px; margin: 0; min-width: 0; }
+.pb-top-rank {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--pb-display); font-size: .85rem;
+  background: rgba(255, 255, 255, .12); color: #fff;
+}
+.pb-top li:first-child .pb-top-rank { background: var(--pb-mustard); color: var(--pb-ink); }
+.pb-top-title {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--pb-display); font-size: 1rem; line-height: 1.4; color: #fff;
+}
+.pb-top li:first-child .pb-top-title { font-size: 1.08rem; }
+.pb-top-score { flex: none; font-size: .78rem; font-weight: 700; color: var(--pb-mustard); }
+
+/* 넓은 칸에 둔 강조 카드(결과 화면 TOP 5): 제목과 목록을 크게.
+   옆 카드(Your Priority List)와 높이를 맞추려고 칸 끝까지 늘리고, 남는 높이는 목록 줄 사이에 나눈다 */
+.pb-dark--large { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; padding: 18px 24px; }
+.pb-dark--large .pb-dark-label { font-family: var(--pb-display); font-size: 1.3rem; font-weight: 400; color: var(--pb-mint); margin-bottom: 6px; }
+.pb-dark--large .pb-top { flex: 1; justify-content: space-evenly; gap: 4px; }
+.pb-dark--large .pb-top li { gap: 12px; }
+.pb-dark--large .pb-top-rank { width: 28px; height: 28px; font-size: .95rem; }
+.pb-dark--large .pb-top-title { font-size: 1.12rem; }
+.pb-dark--large .pb-top li:first-child .pb-top-title { font-size: 1.25rem; }
+.pb-dark--large .pb-top-score { font-size: .9rem; }
+/* 두 카드가 있는 줄: 칸을 같은 높이로 늘리고, 칸 안의 래퍼들도 그 높이를 그대로 물려받게 */
+[data-testid="stHorizontalBlock"]:has(.pb-dark--large) { align-items: stretch; }
+[data-testid="stColumn"] div:has(.pb-dark--large) { height: 100%; }
+/* 마크다운 블록의 기본 음수 아래 여백(-16px)이 있으면 카드가 8px 내려앉는다 */
+[data-testid="stMarkdownContainer"]:has(> .pb-dark--large) { margin-bottom: 0; }
+
+/* 결과 화면 오른쪽 좁은 안내 카드: 제목을 작게 */
+.st-key-pb-card-list h3 { font-size: .95rem; color: var(--pb-muted); }
+
+/* 작은 상태 칩 */
+.pb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.pb-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 11px; border-radius: 999px;
+  font-size: .78rem; font-weight: 600;
+  background: var(--pb-soft); color: var(--pb-ink); border: 1px solid var(--pb-line);
+}
+.pb-chip--ai { background: var(--pb-mint); color: #23624F; border-color: transparent; }
+.pb-chip--fallback { background: #FBEBC0; color: #7A5A0E; border-color: transparent; }
+
+/* ---------- 버튼 ---------- */
+[data-testid="stBaseButton-primary"] {
+  background: var(--pb-ink); border: none; border-radius: 999px;
+  min-height: 3rem; font-weight: 700;
+  box-shadow: 0 12px 24px -14px rgba(46, 51, 89, .8);
+}
+[data-testid="stBaseButton-primary"]:hover:not(:disabled) { background: var(--pb-teal); }
+[data-testid="stBaseButton-primary"]:disabled { background: #C9C4D6; box-shadow: none; }
+[data-testid="stBaseButton-secondary"] {
+  border-radius: 999px; border: 1px solid var(--pb-line);
+  background: var(--pb-soft); color: var(--pb-ink); font-weight: 600;
+}
+[data-testid="stBaseButton-secondary"]:hover { border-color: var(--pb-teal); color: var(--pb-teal); background: #fff; }
+
+/* ---------- 입력 ---------- */
+[data-testid="stFileUploaderDropzone"] {
+  background: var(--pb-soft); border: 1.5px dashed #D9CDB8; border-radius: 16px;
+}
+[data-testid="stDataFrame"], [data-testid="stDataEditor"] { border-radius: 14px; overflow: hidden; }
+[data-testid="stAlert"] { border-radius: 14px; }
+
+/* ---------- 지표 ---------- */
+[data-testid="stMetric"] {
+  background: var(--pb-soft); border-radius: 16px; padding: 12px 16px;
+  border: 1px solid var(--pb-line);
+}
+[data-testid="stMetricValue"] { font-family: var(--pb-display); color: var(--pb-ink); }
+[data-testid="stMetricLabel"] p { color: var(--pb-muted); font-size: .8rem; }
+
+/* ---------- 펼침 ---------- */
+[data-testid="stExpander"] details {
+  background: var(--pb-panel); border: none; border-radius: 22px;
+  box-shadow: var(--pb-shadow);
+}
+[data-testid="stExpander"] summary { padding: 16px 22px; font-weight: 700; }
+
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] { padding-left: 16px; padding-right: 16px; }
+  .pb-brand-title { font-size: 1.35rem; }
+  .pb-dark-big { font-size: 2.6rem; }
+}

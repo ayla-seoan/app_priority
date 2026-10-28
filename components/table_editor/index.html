@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko" translate="no" class="notranslate">
+<head>
+<meta charset="utf-8" />
+<meta name="google" content="notranslate" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<style>
+  /* common/static/theme.css 와 같은 팔레트 */
+  :root {
+    --ink: #2E3359;
+    --muted: #686C88;
+    --line: #EAE1D2;
+    --head: #F7F2E9;
+    --soft: #FBF8F2;
+    --teal: #4FA893;
+    --coral: #E8836B;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: auto; }
+  body {
+    margin: 0; color: var(--ink); background: transparent;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, "Malgun Gothic", sans-serif;
+  }
+  .wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+  .scroll { max-height: 420px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--head); color: var(--muted); font-weight: 600; text-align: left;
+    padding: 9px 10px; border-bottom: 1px solid var(--line);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  th.center { text-align: center; }
+  td { border-bottom: 1px solid var(--line); padding: 0; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--soft); }
+  td input {
+    width: 100%; border: 0; background: transparent; outline: none;
+    font: inherit; color: inherit; padding: 9px 10px; text-overflow: ellipsis;
+  }
+  td.center input { text-align: center; }
+  td input:focus { background: #fff; box-shadow: inset 0 0 0 2px var(--teal); border-radius: 6px; }
+  th.del, td.del { text-align: center; }
+  .del-btn {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); background: var(--soft); color: var(--muted);
+    border-radius: 999px; padding: 3px 10px;
+  }
+  .del-btn:hover { border-color: var(--coral); color: var(--coral); background: #fff; }
+  .del-btn:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+  .add {
+    display: block; width: 100%; cursor: pointer;
+    border: 0; border-top: 1px dashed var(--line); background: var(--soft);
+    color: var(--teal); font: inherit; font-size: 13px; font-weight: 700; padding: 10px;
+  }
+  .add:hover { background: #EEF7F2; }
+  .add:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+  .empty { padding: 18px; text-align: center; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="scroll" id="scroll">
+    <table id="table"></table>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+  <button class="add" id="add" type="button"></button>
+</div>
+
+<script>
+/* ---------- Streamlit 연결 (빌드 없이 쓰는 기본 핸드셰이크) ---------- */
+function send(type, data) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+}
+const Streamlit = {
+  ready: () => send("streamlit:componentReady", { apiVersion: 1 }),
+  height: (h) => send("streamlit:setFrameHeight", { height: h }),
+  value: (v) => send("streamlit:setComponentValue", { value: v, dataType: "json" }),
+};
+
+/* ---------- 상태 ---------- */
+let COLUMNS = [];   // [{key, label, type: "text"|"number", align, width}]
+let ROWS = [];      // [{key: value}]
+let STARTED = false;
+let MAX_ROWS = null; // 이 줄 수를 넘으면 표 안에서 스크롤 (없으면 높이 420px 기준)
+
+/* ---------- 렌더 ---------- */
+function render() {
+  const table = document.getElementById("table");
+  table.innerHTML = "";
+
+  const colgroup = document.createElement("colgroup");
+  const delCol = document.createElement("col");
+  delCol.style.width = "72px";
+  colgroup.appendChild(delCol);
+  COLUMNS.forEach((c) => {
+    const col = document.createElement("col");
+    if (c.width) col.style.width = c.width;
+    colgroup.appendChild(col);
+  });
+  table.appendChild(colgroup);
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const delHead = document.createElement("th");
+  delHead.className = "del";
+  delHead.setAttribute("aria-label", "삭제");  // 보이는 제목은 비우고 화면 읽기용 이름만 둔다
+  headRow.appendChild(delHead);
+  COLUMNS.forEach((c) => {
+    const th = document.createElement("th");
+    th.textContent = c.label;
+    if (c.align === "center") th.className = "center";
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  ROWS.forEach((row, i) => tbody.appendChild(buildRow(row, i)));
+  table.appendChild(tbody);
+
+  const empty = document.getElementById("empty");
+  empty.hidden = ROWS.length > 0;
+  fitScroll();
+  syncHeight();
+}
+
+function buildRow(row, i) {
+  const tr = document.createElement("tr");
+
+  const delCell = document.createElement("td");
+  delCell.className = "del";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "del-btn";
+  btn.textContent = "삭제";
+  btn.setAttribute("aria-label", `${i + 1}번째 행 삭제`);
+  btn.addEventListener("click", () => {
+    ROWS.splice(i, 1);
+    render();
+    commit();
+  });
+  delCell.appendChild(btn);
+  tr.appendChild(delCell);
+
+  COLUMNS.forEach((c) => {
+    const td = document.createElement("td");
+    if (c.align === "center") td.className = "center";
+    const input = document.createElement("input");
+    input.type = "text";
+    if (c.type === "number") input.inputMode = "decimal";
+    const v = row[c.key];
+    input.value = v === null || v === undefined ? "" : String(v);
+    input.title = input.value;
+    input.setAttribute("aria-label", c.label);
+    // 숫자 칸은 숫자와 소수점 하나만 받는다. 한글은 조합이 끝난 뒤에 걸러야 글자가 남지 않는다
+    if (c.type === "number") {
+      input.placeholder = "숫자";
+      input.addEventListener("input", (e) => { if (!e.isComposing) keepNumeric(input); });
+      input.addEventListener("compositionend", () => keepNumeric(input));
+    }
+    // 칸을 벗어나거나 Enter 를 누르면 저장
+    input.addEventListener("change", () => {
+      ROWS[i][c.key] = parse(input.value, c);
+      input.title = input.value;
+      commit();
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+    td.appendChild(input);
+    tr.appendChild(td);
+  });
+  return tr;
+}
+
+// 숫자·소수점이 아닌 글자를 지우고, 소수점은 첫 번째 것만 남긴다. 커서는 지운 만큼 당긴다
+function keepNumeric(input) {
+  const before = input.value;
+  let seenDot = false;
+  const clean = before.replace(/[^0-9.]/g, "").replace(/\./g, () => (seenDot ? "" : (seenDot = true, ".")));
+  if (clean === before) return;
+  const caret = Math.max(0, (input.selectionStart || 0) - (before.length - clean.length));
+  input.value = clean;
+  input.setSelectionRange(caret, caret);
+}
+
+// 숫자 칸은 숫자로 읽히면 숫자로 보낸다. 읽히지 않는 값은 그대로 두어 검증에서 안내한다.
+function parse(text, col) {
+  const s = text.trim();
+  if (s === "") return null;
+  if (col.type !== "number") return text;
+  const n = Number(s.replace(/,/g, ""));
+  return Number.isNaN(n) ? s : n;
+}
+
+function commit() {
+  Streamlit.value({ rows: ROWS, at: Date.now() });
+}
+
+// MAX_ROWS 가 있으면 제목 줄 + 그 줄 수만큼만 보이고 나머지는 스크롤
+function fitScroll() {
+  const scroll = document.getElementById("scroll");
+  if (!MAX_ROWS) return;
+  const rows = document.querySelectorAll("tbody tr");
+  if (rows.length <= MAX_ROWS) { scroll.style.maxHeight = "none"; return; }
+  let h = document.querySelector("thead").offsetHeight;
+  for (let i = 0; i < MAX_ROWS; i++) h += rows[i].offsetHeight;
+  scroll.style.maxHeight = `${h}px`;
+}
+
+let lastHeight = 0;
+function syncHeight() {
+  const h = document.getElementById("wrap").offsetHeight + 4;
+  if (Math.abs(h - lastHeight) < 2) return;
+  lastHeight = h;
+  Streamlit.height(h);
+}
+
+document.getElementById("add").addEventListener("click", () => {
+  const blank = {};
+  COLUMNS.forEach((c) => { blank[c.key] = null; });
+  ROWS.push(blank);
+  render();
+  // 새 행 첫 칸에 바로 입력할 수 있게
+  const scroll = document.getElementById("scroll");
+  scroll.scrollTop = scroll.scrollHeight;
+  const inputs = document.querySelectorAll("tbody tr:last-child input");
+  if (inputs.length) inputs[0].focus();
+});
+
+/* ---------- Streamlit 에서 데이터 받기 ---------- */
+window.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "streamlit:render") return;
+  const args = event.data.args || {};
+  // 처음 한 번만 받은 행으로 시작한다. 이후 다시 그려질 때 받는 행은 편집 전 원본이라 무시한다.
+  // (표를 통째로 바꿀 때는 Python 쪽에서 key 를 바꿔 새 표를 띄운다.)
+  if (STARTED) return;
+  STARTED = true;
+  COLUMNS = args.columns || [];
+  MAX_ROWS = args.max_rows || null;
+  ROWS = JSON.parse(JSON.stringify(args.rows || []));
+  document.getElementById("add").textContent = args.add_label || "+ 행 추가";
+  document.getElementById("empty").textContent = args.empty_text || "아직 항목이 없습니다.";
+  render();
+});
+
+Streamlit.ready();
+Streamlit.height(120);
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+[server]
+# 코드를 저장하면 열린 화면을 새 코드로 바로 다시 그린다 (예전 화면이 남아 있지 않도록)
+runOnSave = true
+
+[theme]
+base = "light"
+primaryColor = "#4FA893"
+backgroundColor = "#F3ECDF"
+secondaryBackgroundColor = "#FBF8F2"
+textColor = "#2E3359"

@@ -1,0 +1,3 @@
+id,title,note,effort_hours
+B-001,렌탈 계약 전자서명 도입,설명이 아니라 note 컬럼,96
+B-002,설치기사 일정 자동 배정,필수 컬럼 description 이 없음,120
